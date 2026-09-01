@@ -1,6 +1,6 @@
 {
   "name": "dsh-scheduled-tasks",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "packageManager": "pnpm@11.7.0",
   "description": "DSH Web 定时任务插件:按每 N 分钟/小时、每天、每周、每月自动执行任务,每次执行开启全新会话,支持选择模型与推理强度",
   "type": "module",
