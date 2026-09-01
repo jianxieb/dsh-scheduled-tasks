@@ -1,0 +1,7 @@
+# dsh-scheduled-tasks bundle patch: one row inserted over the profile root.
+# The row name is the bare package name — the Loader resolves it through the
+# profile's node_modules to lib/index.js (the host half). The client half is
+# discovered separately through the package.json `dsh.client` declaration.
+- insert:
+    - id: scheduled-tasks
+      name: dsh-scheduled-tasks

@@ -1,0 +1,46 @@
+{
+  "name": "dsh-scheduled-tasks",
+  "version": "0.1.1",
+  "packageManager": "pnpm@11.7.0",
+  "description": "DSH Web 定时任务插件:按每 N 分钟/小时、每天、每周、每月自动执行任务,每次执行开启全新会话,支持选择模型与推理强度",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node scripts/build.js"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  },
+  "license": "MIT",
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "plugin",
+    "scheduler",
+    "scheduled-tasks"
+  ]
+}
