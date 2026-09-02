@@ -6,7 +6,7 @@
 
 **DSH Web 定时任务插件** — 让 AI 在你设定的时间,自动开始工作
 
-[![version](https://img.shields.io/badge/version-0.1.2-blue)](./CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-0.1.3-blue)](./CHANGELOG.md)
 [![license](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](#)
 [![dsh](https://img.shields.io/badge/DSH-Web%20Profile-blueviolet)](#)
@@ -86,6 +86,27 @@ dsh plugin --profile web update dsh-scheduled-tasks   # 更新到最新版
 
 执行链路:到点 → 创建新会话(可选指定工作空间)→ 选定模型与强度 → 投递执行内容 → 记录执行历史 → 计算下一次时间。
 
+## 🧩 兼容性与版本要求
+
+本插件依赖 DSH Web profile 提供的两项宿主能力:`connection`(浏览器 RPC 网关)与 `sessionController`(会话控制)。
+
+| DSH 环境 | 状态 |
+|---|---|
+| 提供上述两项服务的 Web 构建(≥ 0.1.2-alpha.2,本插件的开发与验证基线) | ✅ 完整功能 |
+| 旧版 / 精简版构建(缺少任一服务) | ⚠️ 插件自动禁用,不影响 DSH 启动 |
+
+自 v0.1.3 起采用**优雅降级**:检测不到所需服务时插件自动停用自身,**绝不会阻止 DSH 启动**。
+
+### 安装后 DSH 无法启动怎么办
+
+立即卸载即可恢复(任务配置数据保留,不会删除):
+
+```sh
+dsh plugin --profile web remove dsh-scheduled-tasks
+```
+
+然后把启动错误日志提交到 [Issues](https://github.com/jianxieb/dsh-scheduled-tasks/issues),注明 DSH 版本,以便适配。
+
 ## 🛠️ 开发
 
 要求:Node.js ≥ 18、pnpm(仓库锁定 `pnpm@11.7.0`)。
@@ -110,6 +131,7 @@ cordis.patch.yml      # 插件组合声明
 
 - [x] 五种执行频率、新会话执行、模型与强度、工作空间
 - [x] 执行历史、暂停/继续、删除确认、持久化、跨平台迁移、槽位回退
+- [x] 旧版 DSH 兼容性优雅降级(v0.1.3)
 - [ ] 界面预览图与使用文档完善
 - [ ] 失败自动重试与执行结果通知
 - [ ] 英文界面本地化
