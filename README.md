@@ -6,7 +6,7 @@
 
 **DSH Web 定时任务插件** — 让 AI 在你设定的时间,自动开始工作
 
-[![version](https://img.shields.io/badge/version-0.1.3-blue)](./CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-0.1.4-blue)](./CHANGELOG.md)
 [![license](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](#)
 [![dsh](https://img.shields.io/badge/DSH-Web%20Profile-blueviolet)](#)
@@ -41,7 +41,10 @@ dsh plugin --profile web add dsh-scheduled-tasks
 dsh plugin --profile web add git+https://github.com/jianxieb/dsh-scheduled-tasks.git
 ```
 
-重启 `dsh web`,侧边栏即出现蓝色时钟「定时任务」入口。
+重启 `dsh web`,打开一个会话,头部即出现蓝色时钟「定时任务」入口(约 4 秒内注册)。
+
+> **前置条件**:`dsh plugin` 依赖 `pnpm`(`dsh` 会把它转发给 pnpm 执行)。安装前请确认
+> `pnpm --version` 可用;macOS 可用 `npm install -g pnpm` 或 `corepack enable` 安装。
 
 > pnpm ≥ 10 默认拦截 git 依赖的构建脚本。若 git 安装报错,按提示把输出的构建键加入
 > `<DSH_HOME>/profiles/web/pnpm-workspace.yaml` 的 `allowBuilds`,重跑一次即可。
@@ -55,7 +58,7 @@ dsh plugin --profile web update dsh-scheduled-tasks   # 更新到最新版
 
 ## 🧭 使用指南
 
-1. 点击侧边栏「定时任务」打开任务抽屉;
+1. 点击侧边栏「定时任务」模块按钮(或会话头部时钟按钮)打开任务抽屉;
 2. 点击「＋ 新建任务」,按顺序填写:**标题 → 执行内容 → 工作空间 → 执行频率 → 模型与强度**;
 3. 保存后任务自动进入调度队列,卡片上实时显示「下次执行时间」与倒计时;
 4. 点击任务名打开最近一次执行的会话;展开「执行历史」可打开任意一次执行;
@@ -88,14 +91,28 @@ dsh plugin --profile web update dsh-scheduled-tasks   # 更新到最新版
 
 ## 🧩 兼容性与版本要求
 
-本插件依赖 DSH Web profile 提供的两项宿主能力:`connection`(浏览器 RPC 网关)与 `sessionController`(会话控制)。
+宿主端执行接口按 DSH 世代自适应,启动时自动择优:
 
-| DSH 环境 | 状态 |
-|---|---|
-| 提供上述两项服务的 Web 构建(≥ 0.1.2-alpha.2,本插件的开发与验证基线) | ✅ 完整功能 |
-| 旧版 / 精简版构建(缺少任一服务) | ⚠️ 插件自动禁用,不影响 DSH 启动 |
+| DSH 环境 | 执行接口 | 状态 |
+|---|---|---|
+| ≥ 0.1.2-alpha.2(提供 `sessionController`) | `sessionController` 原生路径 | ✅ 完整功能 |
+| ≤ 0.1.1-rc.2(当前 npm 稳定版,仅提供 `apiProxy` 网关) | `apiProxy` 适配(信封包装 + 结果解包) | ✅ 完整功能(自 v0.1.4) |
+| 两者皆无的构建 | — | ⚠️ 插件自动禁用,不影响 DSH 启动 |
 
-自 v0.1.3 起采用**优雅降级**:检测不到所需服务时插件自动停用自身,**绝不会阻止 DSH 启动**。
+自 v0.1.3 起采用**优雅降级**:检测不到所需服务时插件自动停用自身,**绝不会阻止 DSH 启动**;自 v0.1.4 起,已发布稳定版不再降级而是完整工作。
+
+### 入口按钮位置
+
+- 有 `sidebar.sections` 槽位的构建(新版 master):侧边栏模块按钮,位于「新会话」下方;
+- 无该槽位的已发布构建(≤ 0.1.1-rc.2、0.1.2-alpha.2/alpha.3):约 4 秒后自动回退为**会话头部时钟按钮**。
+
+想在这些已发布构建上把按钮放回侧边栏「新会话」下方,可给本地 DSH 侧边栏壳打补丁(改动在本机 DSH 安装内,不进插件仓库;DSH 升级后需重跑):
+
+```sh
+node scripts/patch-sidebar-sections.mjs
+```
+
+脚本支持 ≤ 0.1.1-rc.2 与 0.1.2-alpha.3 的侧边栏结构,幂等可重跑;遇到未知结构会明确提示并退出。打补丁后重启 `dsh web` 并刷新页面。
 
 ### 安装后 DSH 无法启动怎么办
 
@@ -132,6 +149,7 @@ cordis.patch.yml      # 插件组合声明
 - [x] 五种执行频率、新会话执行、模型与强度、工作空间
 - [x] 执行历史、暂停/继续、删除确认、持久化、跨平台迁移、槽位回退
 - [x] 旧版 DSH 兼容性优雅降级(v0.1.3)
+- [x] 已发布稳定版(≤ 0.1.1-rc.2)完整功能 + 侧边栏槽位补丁脚本(v0.1.4)
 - [ ] 界面预览图与使用文档完善
 - [ ] 失败自动重试与执行结果通知
 - [ ] 英文界面本地化

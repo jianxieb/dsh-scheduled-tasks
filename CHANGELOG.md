@@ -4,6 +4,17 @@
 
 ## [未发布]
 
+## [0.1.4] - 2026-09-01
+
+### 新增
+- **已发布版 DSH 完整兼容(不再只是降级)**:DSH ≤ 0.1.1-rc.2(当前 npm 稳定版,无 `sessionController` 服务)通过 `apiProxy` 网关适配执行接口(`sessions.list/create/selectModel/prompt` + `llm.models`,模型目录 `default` 取自 `agentDefaultModel`);与 ≥ 0.1.2-alpha 的 `sessionController` 原生路径并存,启动时竞速择优。
+- RPC 通道注册兼容已发布版:`rpc.handle` 带信任策略参数(`trusted-host`)注册,遇不支持的三参形式自动回退两参形式。
+- `scripts/patch-sidebar-sections.mjs`:给已发布版 DSH(≤ 0.1.1-rc.2、0.1.2-alpha.3)的侧边栏壳补 `sidebar.sections` 槽位,把入口按钮放回「新会话」正下方(跨平台 Node 脚本,幂等;已知结构之外自动退出并提示提 issue)。
+
+### 修复
+- 客户端全部定时器改为 `window.setInterval/setTimeout` 形式:已发布版 DSH 会在动态客户端包内遮蔽裸定时器全局(调用即抛教学错误),导致 UI 不渲染;`window.*` 写法两代均安全。
+- 兼容性表更新:rc.2 稳定版从「自动禁用」升级为「完整功能」。
+
 ## [0.1.3] - 2026-09-01
 
 ### 修复
