@@ -15,9 +15,13 @@ import { dirname, join } from 'node:path'
 
 export const name = 'dsh-scheduled-tasks'
 
-// Hard dependencies: the connection registry (RPC) and the session controller
-// (execution). The plugin waits until both are available.
-export const inject = ['connection', 'sessionController']
+/** Keep in sync with package.json version. */
+const PLUGIN_VERSION = '0.1.3'
+
+// No hard inject: an incompatible DSH (missing these services) must never be
+// blocked from booting. The row activates instantly; the engine attaches only
+// when the services exist (see the ctx.inject callback in apply).
+export const inject = []
 
 // ── frequency math (pure JS, no cron) ──────────────────────────────────────
 
@@ -134,8 +138,12 @@ function normalizeTask(raw) {
 // ── plugin ─────────────────────────────────────────────────────────────────
 
 export function apply(ctx) {
-  const connection = ctx.connection
-  const sessionController = ctx.sessionController
+  // Graceful degradation: attach only when this DSH provides the services the
+  // plugin needs. An incompatible DSH boots normally — this row contributes
+  // nothing instead of failing the startup audit.
+  ctx.inject(['connection', 'sessionController'], (child) => {
+  const connection = child.connection
+  const sessionController = child.sessionController
   // Optional integrations — degrade gracefully when absent.
   const workspaceRegistry = ctx.get('workspaceRegistry')
   const sessions = ctx.get('sessions')
@@ -328,6 +336,7 @@ export function apply(ctx) {
 
   function buildState() {
     return {
+      pluginVersion: PLUGIN_VERSION,
       configPath: state.configPath,
       configError: state.configError,
       saveError: state.saveError,
@@ -539,4 +548,5 @@ export function apply(ctx) {
     const interval = setInterval(() => { void tick() }, 1000)
     return () => { clearInterval(interval) }
   }, 'dsh-scheduled-tasks: tick')
+  })
 }
