@@ -35,6 +35,10 @@ const ctx = {
     if (name === 'workspaceRegistry') return { list: () => [] }
     return undefined
   },
+  inject(deps, callback) {
+    // Simulate the services being present: attach immediately.
+    callback(ctx)
+  },
   effect(callback) {
     const disposer = callback()
     disposers.push(() => {
@@ -65,4 +69,15 @@ if (legacy) {
 }
 for (const dispose of disposers) { try { dispose() } catch {} }
 rmSync(smokeHome, { recursive: true, force: true })
+
+// Second phase: an incompatible DSH never provides the services. apply must
+// complete instantly, register nothing, and never block the profile boot.
+const noServiceCtx = {
+  get() { return undefined },
+  inject() { /* services never arrive */ },
+  effect() { return () => {} },
+}
+mod.apply(noServiceCtx)
+console.log('incompatible DSH: apply completed gracefully (no registration)')
+
 console.log('host smoke OK')

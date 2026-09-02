@@ -68,6 +68,10 @@ const ctxStub = {
     return undefined
   },
   effect() { return () => {} },
+  inject(deps, callback) {
+    // Simulate the services being present: attach immediately.
+    callback({ connection: connectionStub, slots: slotsStub })
+  },
 }
 plugin.apply(ctxStub)
 console.log('primary slot injected:', primaryInjected)
