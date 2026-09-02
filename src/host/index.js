@@ -16,7 +16,7 @@ import { dirname, join } from 'node:path'
 export const name = 'dsh-scheduled-tasks'
 
 /** Keep in sync with package.json version. */
-const PLUGIN_VERSION = '0.1.3'
+const PLUGIN_VERSION = '0.1.4'
 
 // No hard inject: an incompatible DSH (missing these services) must never be
 // blocked from booting. The row activates instantly; the engine attaches only
@@ -137,13 +137,103 @@ function normalizeTask(raw) {
 
 // ── plugin ─────────────────────────────────────────────────────────────────
 
+/**
+ * Adapt the published-DSH `apiProxy` gateway onto the `sessionController`
+ * contract used by DSH ≥ 0.1.2-alpha builds. Published releases ≤ 0.1.1-rc.2
+ * expose the same capabilities through the API gateway, but its in-process
+ * server methods take the full client-request envelope
+ * ({ type, rpcId, method, payload }) and answer { rpcId, result } — mirror
+ * the browser wire here.
+ *
+ *   list        → apiProxy.sessions.list        (shape-compatible)
+ *   create      → apiProxy.sessions.create      (shape-compatible)
+ *   selectModel → apiProxy.sessions.selectModel (shape-compatible)
+ *   prompt      → apiProxy.sessions.prompt      (drops the legacy requestId field)
+ *   modelCatalog→ apiProxy.llm.models + agentDefaultModel current selection
+ *                 for the `default` seat (llm.models has no default of its own)
+ */
+function adaptApiProxy(ctx, apiProxy) {
+  const agentDefaultModel = ctx.get('agentDefaultModel')
+  let rpcSeq = 0
+  const envelope = (method, payload) => ({
+    type: 'client-request',
+    rpcId: 'sched-' + Date.now().toString(36) + '-' + (rpcSeq++),
+    method,
+    payload: payload ?? {},
+  })
+  const unwrap = (response) => {
+    const result = response && response.result
+    if (result === undefined || result.ok !== true) {
+      const message = result && result.error ? result.error.message : '网关调用失败'
+      throw new Error(message)
+    }
+    return result.value
+  }
+  return {
+    async list(request, _signal) {
+      return unwrap(await apiProxy.sessions.list(envelope('session.list', request ?? {})))
+    },
+    async modelCatalog() {
+      const models = unwrap(await apiProxy.llm.models(envelope('llm.models', {})))
+      let fallbackDefault = null
+      if (agentDefaultModel !== undefined && typeof agentDefaultModel.currentSelection === 'function') {
+        const sel = agentDefaultModel.currentSelection()
+        if (sel && sel.provider && sel.model) {
+          fallbackDefault = {
+            provider: String(sel.provider),
+            model: String(sel.model),
+            reasoningEffort: sel.reasoningEffort ? String(sel.reasoningEffort) : undefined,
+          }
+        }
+      }
+      return {
+        default: fallbackDefault,
+        groups: models && Array.isArray(models.groups) ? models.groups : [],
+        failures: models && Array.isArray(models.failures) ? models.failures : [],
+      }
+    },
+    async create(request) {
+      return unwrap(await apiProxy.sessions.create(envelope('session.create', request ?? {})))
+    },
+    async selectModel(request) {
+      return unwrap(await apiProxy.sessions.selectModel(envelope('session.selectModel', request)))
+    },
+    async prompt(request, _signal) {
+      return unwrap(await apiProxy.sessions.prompt(envelope('session.prompt', {
+        sessionId: request.sessionId,
+        mode: request.mode,
+        content: request.content,
+      })))
+    },
+  }
+}
+
 export function apply(ctx) {
-  // Graceful degradation: attach only when this DSH provides the services the
-  // plugin needs. An incompatible DSH boots normally — this row contributes
-  // nothing instead of failing the startup audit.
+  // Graceful degradation with a version-tolerant execution face: the engine
+  // attaches when this DSH provides `sessionController` (≥ 0.1.2-alpha) or the
+  // `apiProxy` gateway (published ≤ 0.1.1-rc.2). An incompatible DSH boots
+  // normally — this row contributes nothing instead of failing the startup
+  // audit. The loader activates rows concurrently, so neither service may be
+  // visible during apply; ctx.inject parks each fiber until its services
+  // exist and the first one to arrive starts the engine.
+  let started = false
+  const start = (connection, sessionController) => {
+    if (started) return
+    started = true
+    initEngine(ctx, connection, sessionController)
+  }
   ctx.inject(['connection', 'sessionController'], (child) => {
-  const connection = child.connection
-  const sessionController = child.sessionController
+    start(child.connection, child.sessionController)
+  })
+  ctx.inject(['connection', 'apiProxy'], (child) => {
+    if (started) return
+    // Prefer the native controller when this DSH provides one.
+    if (child.get('sessionController') !== undefined) return
+    start(child.connection, adaptApiProxy(child, child.apiProxy))
+  })
+}
+
+function initEngine(ctx, connection, sessionController) {
   // Optional integrations — degrade gracefully when absent.
   const workspaceRegistry = ctx.get('workspaceRegistry')
   const sessions = ctx.get('sessions')
@@ -531,7 +621,15 @@ export function apply(ctx) {
     }
   }
 
-  connection.rpc.handle('/scheduled-tasks', handler)
+  try {
+    // Version tolerance: published DSH (≤ 0.1.1-rc.2) requires the
+    // trust-policy options argument; master/newer handle takes only
+    // (channel, handler) and ignores extra arguments. Fall back to the
+    // 2-arg form if some variant rejects the options.
+    connection.rpc.handle('/scheduled-tasks', handler, { authority: 'trusted-host' })
+  } catch (error) {
+    connection.rpc.handle('/scheduled-tasks', handler)
+  }
 
   ctx.effect(() => {
     void loadConfig().then(async () => {
@@ -548,5 +646,4 @@ export function apply(ctx) {
     const interval = setInterval(() => { void tick() }, 1000)
     return () => { clearInterval(interval) }
   }, 'dsh-scheduled-tasks: tick')
-  })
 }
