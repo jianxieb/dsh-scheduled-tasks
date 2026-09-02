@@ -423,7 +423,7 @@ function TaskPanel(props) {
       Btn({ onClick: props.onClose }, '✕')))
   const bodyEl = el('div', { className: 'dshsched-drawer-body' }, body)
   const foot = el('div', { className: 'dshsched-foot' },
-    (data && data.configPath ? '配置: ' + data.configPath : '尚未保存配置') + ' · 常驻调度,关闭本页不影响执行')
+    (data && data.configPath ? '配置: ' + data.configPath : '尚未保存配置') + (data && data.pluginVersion ? ' · v' + data.pluginVersion : '') + ' · 常驻调度,关闭本页不影响执行')
   const dialog = deleting !== null ? (() => {
     const target = tasks.find((t) => t.id === deleting)
     return el('div', { className: 'dshsched-dialog', onClick: (ev) => ev.stopPropagation() },
@@ -498,10 +498,14 @@ function SchedulerSection(props) {
 // ── plugin ──────────────────────────────────────────────────────────────
 
 module.exports = {
-  inject: ['connection'],
+  inject: [],
   apply(ctx) {
-    const connection = ctx.connection
-    const slots = ctx.get('slots')
+    // Graceful degradation: attach only once the client runtime provides the
+    // connection RPC and the slot registry. On an incompatible DSH this row
+    // contributes nothing instead of blocking the client boot.
+    ctx.inject(['connection', 'slots'], (child) => {
+    const connection = child.connection
+    const slots = child.slots
     if (slots === undefined) return
 
     rpcFn = (endpoint, payload) => connection.rpc.call('/scheduled-tasks', endpoint, payload ?? null)
@@ -549,5 +553,6 @@ module.exports = {
       rpcFn = null
       openSession = null
     }, 'dsh-scheduled-tasks: bridges')
+    })
   },
 }
