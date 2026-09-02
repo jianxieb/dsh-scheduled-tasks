@@ -455,12 +455,15 @@ function SchedulerSection(props) {
       }
     }
     void refresh()
-    const stopPoll = setInterval(() => { void refresh() }, 5000)
-    const stopClock = setInterval(() => setClock((t) => t + 1), 1000)
+    // Published DSH shadows the bare timer globals inside dynamic client
+    // packages (they throw a teaching error), so every timer goes through
+    // the window object, like the first-party client packages do.
+    const stopPoll = window.setInterval(() => { void refresh() }, 5000)
+    const stopClock = window.setInterval(() => setClock((t) => t + 1), 1000)
     return () => {
       alive = false
-      clearInterval(stopPoll)
-      clearInterval(stopClock)
+      window.clearInterval(stopPoll)
+      window.clearInterval(stopClock)
     }
   }, [])
 
@@ -539,7 +542,8 @@ module.exports = {
         (slotProps) => el(SchedulerSection, { wide: !!(slotProps && slotProps.wide) }),
       )
     }))
-    const fallbackTimer = setTimeout(() => win(() => {
+    // window.* prefix: see the timer note in SchedulerSection's effect.
+    const fallbackTimer = window.setTimeout(() => win(() => {
       slots.inject('conversation.session.header.actions', () => {
         slots.register(
           { name: 'conversation.session.header.actions', id: 'scheduled-tasks', order: 20 },
@@ -547,7 +551,7 @@ module.exports = {
         )
       })
     }), 4000)
-    ctx.effect(() => () => { clearTimeout(fallbackTimer) }, 'dsh-scheduled-tasks: slot fallback timer')
+    ctx.effect(() => () => { window.clearTimeout(fallbackTimer) }, 'dsh-scheduled-tasks: slot fallback timer')
 
     ctx.effect(() => () => {
       rpcFn = null

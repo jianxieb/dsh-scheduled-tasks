@@ -16,17 +16,24 @@ const requireStub = (specifier) => {
   if (specifier === 'react') return reactStub
   throw new Error('unexpected external: ' + specifier)
 }
+const setTimeoutStub = () => 0
+const clearTimeoutStub = () => {}
+const setIntervalStub = () => 0
+const clearIntervalStub = () => {}
+
 const windowStub = {
   __ModuleLoader__: {
     load(handoff) { registration = handoff },
   },
+  setTimeout: setTimeoutStub,
+  clearTimeout: clearTimeoutStub,
+  setInterval: setIntervalStub,
+  clearInterval: clearIntervalStub,
 }
 const documentStub = {
   head: { appendChild() {} },
   createElement() { return { dataset: {}, remove() {} } },
 }
-const setTimeoutStub = () => 0
-const clearTimeoutStub = () => {}
 
 const runner = new Function('window', 'document', 'setTimeout', 'clearTimeout', source)
 runner(windowStub, documentStub, setTimeoutStub, clearTimeoutStub)
